@@ -19,9 +19,9 @@
   --danger:#ff5252;
 }
 *{box-sizing:border-box; margin:0; padding:0;}
-html,body{background:var(--bg); color:var(--text); font-family:'Segoe UI',Roboto,Arial,sans-serif; height:100%; -webkit-tap-highlight-color:transparent;}
+html,body{background:var(--bg); color:var(--text); font-family:'Segoe UI',Roboto,Arial,sans-serif; height:100%; width:100%; -webkit-tap-highlight-color:transparent;}
 body{min-height:100vh; overflow-x:hidden;}
-#app-root{max-width:520px; margin:0 auto; min-height:100vh; position:relative; background:var(--bg); display:flex; flex-direction:column;}
+#app-root{width:100%; min-height:100vh; position:relative; background:var(--bg); display:flex; flex-direction:column;}
 
 /* ---------- Splash ---------- */
 #splash{
@@ -38,10 +38,32 @@ body{min-height:100vh; overflow-x:hidden;}
 .splash-bar-fill{height:100%; width:0%; background:linear-gradient(90deg,var(--green),var(--yellow)); animation:loadbar 2s linear forwards;}
 @keyframes loadbar{ to{width:100%;} }
 
+/* ---------- Private mode banner ---------- */
+#private-banner{
+  display:none; width:100%; background:var(--yellow); color:#000; font-weight:700; font-size:12.5px;
+  text-align:center; padding:8px 14px;
+}
+
+/* ---------- Point scored animation ---------- */
+#point-toast{
+  position:fixed; top:76px; left:50%; transform:translate(-50%,-14px) scale(.8);
+  background:linear-gradient(135deg,var(--green),var(--yellow)); color:#000; font-weight:900; font-size:22px;
+  padding:14px 28px; border-radius:14px; box-shadow:0 0 34px rgba(57,255,20,.65); opacity:0;
+  z-index:300; pointer-events:none; letter-spacing:1px; white-space:nowrap;
+}
+#point-toast.show{ animation: pointpop 2.6s ease forwards; }
+@keyframes pointpop{
+  0%{ opacity:0; transform:translate(-50%,-10px) scale(.8); }
+  8%{ opacity:1; transform:translate(-50%,0) scale(1.08); }
+  15%{ opacity:1; transform:translate(-50%,0) scale(1); }
+  85%{ opacity:1; transform:translate(-50%,0) scale(1); }
+  100%{ opacity:0; transform:translate(-50%,-16px) scale(.95); }
+}
+
 /* ---------- Header ---------- */
 #header{
   position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
-  padding:14px 16px; background:#000; border-bottom:1px solid var(--border);
+  padding:14px 24px; background:#000; border-bottom:1px solid var(--border); width:100%;
 }
 #header .brand{font-weight:900; letter-spacing:1px; font-size:18px; cursor:pointer;}
 #header .brand .a{color:var(--green);}
@@ -67,14 +89,14 @@ body{min-height:100vh; overflow-x:hidden;}
 .menu-close{align-self:flex-end; background:none; border:none; color:var(--text-dim); font-size:22px; cursor:pointer; margin-bottom:6px;}
 
 /* ---------- Content ---------- */
-#app-content{flex:1; padding:16px; padding-bottom:60px;}
+#app-content{flex:1; width:100%; max-width:1400px; margin:0 auto; padding:20px 24px 60px;}
 .page-title{font-size:20px; font-weight:800; color:var(--green); margin-bottom:4px;}
 .page-sub{color:var(--text-dim); font-size:13px; margin-bottom:16px;}
 .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px;}
 .card h4{color:var(--yellow); font-size:15px; margin-bottom:2px;}
 .tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; border:1px solid var(--green); color:var(--green); margin-top:4px;}
 .tag.done{background:var(--green); color:#000; border-color:var(--green); font-weight:700;}
-.meta-row{display:flex; gap:14px; font-size:12px; color:var(--text-dim); margin:6px 0 10px;}
+.meta-row{display:flex; gap:14px; font-size:12px; color:var(--text-dim); margin:6px 0 10px; flex-wrap:wrap;}
 .meta-row b{color:var(--text);}
 .set-row{display:grid; grid-template-columns:36px 1fr 1fr; gap:8px; align-items:center; margin-bottom:6px;}
 .set-row span{color:var(--text-dim); font-size:12px;}
@@ -89,7 +111,7 @@ input:focus{outline:1px solid var(--green);}
 .btn.secondary{background:none; border:1px solid var(--green); color:var(--green);}
 .btn.small{padding:6px 10px; font-size:12px;}
 .btn:disabled{opacity:.4; cursor:not-allowed;}
-.row-between{display:flex; align-items:center; justify-content:space-between;}
+.row-between{display:flex; align-items:center; justify-content:space-between; gap:10px;}
 .pill-group{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
 .pill{padding:7px 12px; border-radius:20px; border:1px solid var(--border); color:var(--text-dim); font-size:12px; cursor:pointer;}
 .pill.active{border-color:var(--green); color:var(--green); font-weight:700;}
@@ -99,14 +121,14 @@ input:focus{outline:1px solid var(--green);}
 .stat-box .lbl{font-size:11px; color:var(--text-dim); margin-top:4px; letter-spacing:1px;}
 .pos{color:var(--green);}
 .neg{color:var(--yellow);}
-.switch{position:relative; width:46px; height:24px;}
+.switch{position:relative; width:46px; height:24px; flex:0 0 auto;}
 .switch input{opacity:0; width:0; height:0;}
 .slider-el{position:absolute; cursor:pointer; inset:0; background:#333; border-radius:24px; transition:.2s;}
 .slider-el:before{position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:#ccc; border-radius:50%; transition:.2s;}
 input:checked + .slider-el{background:var(--green-dim);}
 input:checked + .slider-el:before{transform:translateX(22px); background:var(--green);}
 .locked-box{opacity:.5; pointer-events:none;}
-.log-entry{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px;}
+.log-entry{display:flex; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px;}
 .log-entry:last-child{border-bottom:none;}
 .bar-chart{display:flex; align-items:flex-end; gap:4px; height:120px; margin:10px 0; overflow-x:auto;}
 .bar{flex:0 0 auto; width:14px; background:linear-gradient(180deg,var(--green),var(--green-dim)); border-radius:3px 3px 0 0; position:relative;}
@@ -114,7 +136,10 @@ input:checked + .slider-el:before{transform:translateX(22px); background:var(--g
 .empty-msg{color:var(--text-dim); font-size:13px; text-align:center; padding:24px 0;}
 svg.linechart{width:100%; height:140px;}
 .footer-note{text-align:center; color:var(--text-dim); font-size:11px; margin-top:20px;}
-.badge-locked{font-size:11px; color:var(--yellow); border:1px solid var(--yellow); padding:2px 8px; border-radius:20px;}
+.badge-locked{font-size:11px; color:var(--yellow); border:1px solid var(--yellow); padding:2px 8px; border-radius:20px; white-space:nowrap;}
+.cards-grid{display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:12px;}
+@media(min-width:800px){ .cards-grid{grid-template-columns:1fr 1fr;} }
+@media(min-width:1300px){ .cards-grid{grid-template-columns:1fr 1fr 1fr;} }
 ::-webkit-scrollbar{height:6px; width:6px;}
 ::-webkit-scrollbar-thumb{background:#333; border-radius:3px;}
 </style>
@@ -127,7 +152,10 @@ svg.linechart{width:100%; height:140px;}
   <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
 </div>
 
+<div id="point-toast"></div>
+
 <div id="app-root" style="display:none;">
+  <div id="private-banner">⚠ Private / Incognito browsing detected — entries may not be saved after this window is closed.</div>
   <div id="header">
     <div class="brand" onclick="navigate('home')"><span class="a">ALPHA</span> <span class="w">WORKOUT</span></div>
     <button id="hamburger-btn" onclick="toggleMenu(true)"><span></span><span></span><span></span></button>
@@ -138,6 +166,7 @@ svg.linechart{width:100%; height:140px;}
     <button class="menu-close" onclick="toggleMenu(false)">&times;</button>
     <h3>MENU</h3>
     <div class="menu-item" onclick="navigate('progress')"><span>📈 Track Progress</span><span class="arrow">›</span></div>
+    <div class="menu-item" onclick="navigate('upcoming')"><span>📅 Upcoming Workouts</span><span class="arrow">›</span></div>
     <div class="menu-item" onclick="navigate('bodyweight')"><span>⚖️ Body Weight</span><span class="arrow">›</span></div>
     <div class="menu-item" onclick="navigate('points')"><span>🏆 Points &amp; Rewards</span><span class="arrow">›</span></div>
     <div class="menu-item" onclick="navigate('settings')"><span>⚙️ Settings</span><span class="arrow">›</span></div>
@@ -149,10 +178,13 @@ svg.linechart{width:100%; height:140px;}
 
 <script>
 /* ============================================================
-   ALPHA WORKOUT — single file app, offline, localStorage based
+   ALPHA WORKOUT — single file app, offline-first, dual-persisted
+   (localStorage + IndexedDB), points/rewards + tier system
    ============================================================ */
 
 const STORAGE_KEY = 'alphaWorkoutData_v1';
+const IDB_NAME = 'AlphaWorkoutDB';
+const IDB_STORE = 'state';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -213,6 +245,22 @@ const WORKOUT_PLAN = {
   Sunday: { focus:'Rest Day', exercises:[] }
 };
 
+/* ---------------- reward constants ---------------- */
+const FIRST_ENTRY_BONUS = 10000;
+const PER_SET_POINTS = 25;
+const PR_REWARD = 2500;
+const BODYWEIGHT_LOG_REWARD = 2500;
+const BODYWEIGHT_MISS_PENALTY = 5000;
+const GAP_PENALTY = 10000;      // 2+ continuous days with no exercise logged
+const WEEKLY_MISS_PENALTY = 50000; // fewer than 5 workout days in a Mon-Sun week
+
+const TIERS = [
+  { name:'Platinum', min:75000, color:'var(--green)' },
+  { name:'Gold',      min:30000, color:'var(--yellow)' },
+  { name:'Silver',    min:10000, color:'#c0c0c0' },
+  { name:'Bronze',    min:-Infinity, color:'#a97142' }
+];
+
 /* ---------------- date utils ---------------- */
 function formatDateKey(d){
   const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
@@ -224,7 +272,7 @@ function parseDateKey(key){
 }
 function dayNameForDate(d){ return DAY_NAMES[d.getDay()]; }
 function addDays(d,n){ const nd=new Date(d); nd.setDate(nd.getDate()+n); return nd; }
-function diffDays(a,b){ // whole days a-b (a later than b => positive)
+function diffDays(a,b){
   const A=new Date(a.getFullYear(),a.getMonth(),a.getDate());
   const B=new Date(b.getFullYear(),b.getMonth(),b.getDate());
   return Math.round((A-B)/86400000);
@@ -234,21 +282,23 @@ function niceDate(key){
   return d.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'});
 }
 
-/* ---------------- data layer ---------------- */
+/* ---------------- data layer (localStorage + IndexedDB dual persistence) ---------------- */
 function defaultData(){
   return {
     createdAt: formatDateKey(new Date()),
+    updatedAt: Date.now(),
     points: 0,
     pointsLog: [],
     bodyWeight: [],
     workouts: {},
     settings: { allowPastEntries:false },
     penalizedBodyWeightWeeks: [],
-    inactivityPenaltyAppliedFor: null,
-    streakResetAt: null
+    evaluatedWeeks: [],
+    gapPenaltyAppliedFor: null,
+    forcedBronzeActive: false,
+    firstEntryAwarded: false
   };
 }
-let data = loadData();
 function loadData(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -257,27 +307,105 @@ function loadData(){
     return Object.assign(defaultData(), parsed);
   }catch(e){ return defaultData(); }
 }
-function persist(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+let data = loadData();
+
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    if(!window.indexedDB) return reject('no-idb');
+    const req = indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded = ()=>{ req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+async function idbSave(obj){
+  try{
+    const db = await idbOpen();
+    return new Promise((resolve)=>{
+      const tx = db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put(obj,'data');
+      tx.oncomplete=()=>resolve(true);
+      tx.onerror=()=>resolve(false);
+    });
+  }catch(e){ return false; }
+}
+async function idbLoad(){
+  try{
+    const db = await idbOpen();
+    return new Promise((resolve)=>{
+      const tx = db.transaction(IDB_STORE,'readonly');
+      const req = tx.objectStore(IDB_STORE).get('data');
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>resolve(null);
+    });
+  }catch(e){ return null; }
+}
+function persist(){
+  data.updatedAt = Date.now();
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){}
+  idbSave(data);
+}
+async function reconcileStorage(){
+  const idbData = await idbLoad();
+  if(idbData && (idbData.updatedAt||0) > (data.updatedAt||0)){
+    data = Object.assign(defaultData(), idbData);
+    persist();
+    render();
+  } else {
+    // seed / keep IndexedDB in sync with whatever we currently have
+    idbSave(data);
+  }
+}
+function detectPrivateModeAndWarn(){
+  try{
+    localStorage.setItem('__pmtest__','1');
+    localStorage.removeItem('__pmtest__');
+  }catch(e){ showPrivateBanner(); return; }
+  if(!window.indexedDB){ showPrivateBanner(); return; }
+  if(navigator.storage && navigator.storage.estimate){
+    navigator.storage.estimate().then(est=>{
+      if(est && est.quota && est.quota < 120000000){ showPrivateBanner(); }
+    }).catch(()=>{});
+  }
+}
+function showPrivateBanner(){
+  const el = document.getElementById('private-banner');
+  if(el) el.style.display='block';
+}
 
 function awardPoints(delta, reason){
   data.points += delta;
   data.pointsLog.unshift({ ts: new Date().toISOString(), delta, reason });
-  if(data.pointsLog.length>300) data.pointsLog.length=300;
+  if(data.pointsLog.length>400) data.pointsLog.length=400;
 }
 
-/* ---------------- streak ---------------- */
+/* ---------------- point scored animation ---------------- */
+function triggerPointAnimation(total){
+  if(!total || total<=0) return;
+  const el = document.getElementById('point-toast');
+  if(!el) return;
+  el.textContent = `+${total.toLocaleString()} PTS`;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
+/* ---------------- streak & tier ---------------- */
 function computeStreak(){
   let count=0;
   let d=new Date(); d.setHours(0,0,0,0);
   while(true){
     const key=formatDateKey(d);
-    if(data.streakResetAt && key<=data.streakResetAt) break;
     const w=data.workouts[key];
     if(w && w.entries && Object.keys(w.entries).length>0){
       count++; d=addDays(d,-1);
     } else break;
   }
   return count;
+}
+function computeTier(){
+  if(data.forcedBronzeActive) return TIERS[3];
+  return TIERS.find(t=>data.points>=t.min);
 }
 
 /* ---------------- penalty engine ---------------- */
@@ -286,35 +414,40 @@ function getSundayOfWeek(date){
   const day=d.getDay();
   return addDays(d,-day);
 }
+function getMondayOfWeek(date){
+  const d=new Date(date); d.setHours(0,0,0,0);
+  const day=d.getDay();
+  const diff = (day===0)? -6 : 1-day;
+  return addDays(d,diff);
+}
 function bodyWeightWindow(sunday){
+  // Sunday 6:00 AM through Monday 11:59:59 PM
   const start=new Date(sunday); start.setHours(6,0,0,0);
-  const end=addDays(sunday,2); end.setHours(12,0,0,0);
+  const end=addDays(sunday,1); end.setHours(23,59,59,999);
   return {start,end};
 }
 function hasBodyWeightInWindow(start,end){
   return data.bodyWeight.some(e=>{
     const d=parseDateKey(e.date);
-    // approximate entry time as noon of that day for window comparison
     const dt=new Date(d); dt.setHours(12,0,0,0);
     return dt>=start && dt<=end;
   });
 }
 function runBodyWeightPenaltyCheck(now){
   const currentSunday = getSundayOfWeek(now);
+  const createdAtStart = parseDateKey(data.createdAt); // midnight of account-creation day
   for(let w=11; w>=0; w--){
     const sunday = addDays(currentSunday, -7*w);
     const weekKey = formatDateKey(sunday);
     const {start,end} = bodyWeightWindow(sunday);
-    if(end > now) continue; // window not finished yet
+    if(start < createdAtStart) continue; // don't penalize windows that began before the account existed
+    if(end > now) continue;
     if(data.penalizedBodyWeightWeeks.includes(weekKey)) continue;
     if(!hasBodyWeightInWindow(start,end)){
-      data.points -= 5000;
-      data.pointsLog.unshift({ ts:new Date().toISOString(), delta:-5000, reason:`Missed body weight window (week of ${weekKey})` });
-      data.streakResetAt = formatDateKey(now);
-      data.penalizedBodyWeightWeeks.push(weekKey);
-    } else {
-      data.penalizedBodyWeightWeeks.push(weekKey);
+      data.points -= BODYWEIGHT_MISS_PENALTY;
+      data.pointsLog.unshift({ ts:new Date().toISOString(), delta:-BODYWEIGHT_MISS_PENALTY, reason:`Missed body weight window (week of ${weekKey})` });
     }
+    data.penalizedBodyWeightWeeks.push(weekKey);
   }
 }
 function getLastWorkoutLogDate(){
@@ -323,22 +456,53 @@ function getLastWorkoutLogDate(){
   keys.sort();
   return parseDateKey(keys[keys.length-1]);
 }
-function runInactivityCheck(now){
+function runGapPenaltyCheck(now){
   const last = getLastWorkoutLogDate();
   const baseline = last || parseDateKey(data.createdAt);
   const baselineKey = formatDateKey(baseline);
   const today = new Date(now); today.setHours(0,0,0,0);
   const gap = diffDays(today, baseline);
-  if(gap>=3 && data.inactivityPenaltyAppliedFor !== baselineKey){
-    data.points -= 50000;
-    data.pointsLog.unshift({ ts:new Date().toISOString(), delta:-50000, reason:'No workout logged in 3+ days' });
-    data.inactivityPenaltyAppliedFor = baselineKey;
+  if(gap>=2 && data.gapPenaltyAppliedFor !== baselineKey){
+    data.points -= GAP_PENALTY;
+    data.pointsLog.unshift({ ts:new Date().toISOString(), delta:-GAP_PENALTY, reason:'No exercise logged for 2+ continuous days' });
+    data.gapPenaltyAppliedFor = baselineKey;
+  }
+}
+function countLoggedDaysInWeek(monday){
+  let count=0;
+  for(let i=0;i<7;i++){
+    const key=formatDateKey(addDays(monday,i));
+    const w=data.workouts[key];
+    if(w && w.entries && Object.keys(w.entries).length>0) count++;
+  }
+  return count;
+}
+function runWeeklyMinimumCheck(now){
+  const currentMonday = getMondayOfWeek(now);
+  const createdAtStart = parseDateKey(data.createdAt); // midnight of account-creation day
+  for(let w=11; w>=0; w--){
+    const monday = addDays(currentMonday, -7*w);
+    if(monday < createdAtStart) continue; // don't penalize weeks that started before the account existed
+    const weekKey = formatDateKey(monday);
+    const weekEnd = addDays(monday,6); weekEnd.setHours(23,59,59,999);
+    if(weekEnd > now) continue;
+    if(data.evaluatedWeeks.includes(weekKey)) continue;
+    const loggedDays = countLoggedDaysInWeek(monday);
+    if(loggedDays < 5){
+      data.points -= WEEKLY_MISS_PENALTY;
+      data.pointsLog.unshift({ ts:new Date().toISOString(), delta:-WEEKLY_MISS_PENALTY, reason:`Missed weekly minimum — only ${loggedDays}/7 days logged (week of ${weekKey})` });
+      data.forcedBronzeActive = true;
+    } else if(data.forcedBronzeActive){
+      data.forcedBronzeActive = false;
+    }
+    data.evaluatedWeeks.push(weekKey);
   }
 }
 function runPenaltyChecks(){
   const now = new Date();
   runBodyWeightPenaltyCheck(now);
-  runInactivityCheck(now);
+  runGapPenaltyCheck(now);
+  runWeeklyMinimumCheck(now);
   persist();
 }
 
@@ -346,7 +510,12 @@ function runPenaltyChecks(){
 function ensureDayEntry(dateKey){
   if(!data.workouts[dateKey]){
     const dName = dayNameForDate(parseDateKey(dateKey));
-    data.workouts[dateKey] = { day: dName, entries: {} };
+    data.workouts[dateKey] = { day: dName, entries: {}, customExercises: [], awarded: {}, prAwarded: {} };
+  } else {
+    const w = data.workouts[dateKey];
+    w.customExercises = w.customExercises || [];
+    w.awarded = w.awarded || {};
+    w.prAwarded = w.prAwarded || {};
   }
   return data.workouts[dateKey];
 }
@@ -361,23 +530,89 @@ function checkOverload(exerciseName, dateKey, newMaxWeight){
     }
   }
   if(priorMax > -Infinity && newMaxWeight > priorMax){
-    awardPoints(1000, `New heavy lift on ${exerciseName}!`);
+    awardPoints(PR_REWARD, `New PR on ${exerciseName}!`);
     return true;
   }
   return false;
 }
+function findExerciseDef(exId, dateKey){
+  const dayName = dayNameForDate(parseDateKey(dateKey));
+  const plan = WORKOUT_PLAN[dayName];
+  let ex = plan.exercises.find(e=>e.id===exId);
+  if(ex) return ex;
+  const dayEntry = data.workouts[dateKey];
+  if(dayEntry && dayEntry.customExercises){
+    ex = dayEntry.customExercises.find(e=>e.id===exId);
+  }
+  return ex;
+}
 function saveExercise(dateKey, exerciseName, type, sets){
   const dayEntry = ensureDayEntry(dateKey);
-  const isFirst = !(exerciseName in dayEntry.entries);
   dayEntry.entries[exerciseName] = sets;
-  if(isFirst) awardPoints(25, `Logged ${exerciseName} (${dateKey})`);
-  let prMsg = false;
+  let sessionTotal = 0;
+
+  function grantFirstEntryIfNeeded(){
+    if(!data.firstEntryAwarded){
+      awardPoints(FIRST_ENTRY_BONUS, 'Welcome bonus — first entry logged!');
+      sessionTotal += FIRST_ENTRY_BONUS;
+      data.firstEntryAwarded = true;
+    }
+  }
+
+  if(type==='strength'){
+    const prevAwarded = dayEntry.awarded[exerciseName] || sets.map(()=>false);
+    const newAwarded = sets.map((s,i)=> prevAwarded[i] || (Number(s.weight)>0 || Number(s.reps)>0));
+    sets.forEach((s,i)=>{
+      const filled = (Number(s.weight)>0 || Number(s.reps)>0);
+      if(filled && !prevAwarded[i]){
+        grantFirstEntryIfNeeded();
+        awardPoints(PER_SET_POINTS, `Set ${i+1} — ${exerciseName}`);
+        sessionTotal += PER_SET_POINTS;
+      }
+    });
+    dayEntry.awarded[exerciseName] = newAwarded;
+  } else {
+    const filled = sets[0] && String(sets[0].value||'').trim().length>0;
+    const already = dayEntry.awarded[exerciseName]===true;
+    if(filled && !already){
+      grantFirstEntryIfNeeded();
+      awardPoints(PER_SET_POINTS, `${exerciseName} logged`);
+      sessionTotal += PER_SET_POINTS;
+      dayEntry.awarded[exerciseName] = true;
+    }
+  }
+
+  let prTriggered = false;
   if(type==='strength'){
     const maxWeight = Math.max(...sets.map(s=>Number(s.weight)||0), 0);
-    if(maxWeight>0) prMsg = checkOverload(exerciseName, dateKey, maxWeight);
+    if(maxWeight>0 && !dayEntry.prAwarded[exerciseName]){
+      const isPR = checkOverload(exerciseName, dateKey, maxWeight);
+      if(isPR){
+        dayEntry.prAwarded[exerciseName] = true;
+        sessionTotal += PR_REWARD;
+        prTriggered = true;
+      }
+    }
   }
+
   persist();
-  return prMsg;
+  return { sessionTotal, prTriggered };
+}
+
+/* ---------------- custom exercises ---------------- */
+function addCustomExercise(dateKey){
+  const nameInput = document.getElementById(`custom-name-${dateKey}`);
+  const setsInput = document.getElementById(`custom-sets-${dateKey}`);
+  const repsInput = document.getElementById(`custom-reps-${dateKey}`);
+  const name = (nameInput.value||'').trim();
+  if(!name) return;
+  const sets = Math.min(Math.max(parseInt(setsInput.value)||1,1),10);
+  const reps = (repsInput.value||'').trim() || '-';
+  const dayEntry = ensureDayEntry(dateKey);
+  if(dayEntry.customExercises.some(c=>c.name.toLowerCase()===name.toLowerCase())) return;
+  dayEntry.customExercises.push({ id:'custom-'+Date.now()+'-'+Math.floor(Math.random()*1000), name, sets, reps });
+  persist();
+  if(currentView==='pastlog') renderPastLog(); else renderHome();
 }
 
 /* ---------------- body weight ---------------- */
@@ -397,10 +632,11 @@ function nextBodyWeightDate(){
   return formatDateKey(addDays(parseDateKey(last.date), 6));
 }
 function saveBodyWeight(weightVal){
-  if(!canLogBodyWeight()) return false;
+  if(!canLogBodyWeight()) return { ok:false, awarded:0 };
   data.bodyWeight.push({ date: formatDateKey(new Date()), weight: Number(weightVal) });
+  awardPoints(BODYWEIGHT_LOG_REWARD, 'Body weight logged');
   persist();
-  return true;
+  return { ok:true, awarded: BODYWEIGHT_LOG_REWARD };
 }
 
 /* ---------------- rendering / router ---------------- */
@@ -423,7 +659,7 @@ function exerciseCardHTML(ex, dateKey, savedSets){
   const saved = !!savedSets;
   let inner = '';
   if(ex.type==='strength'){
-    inner = `<div class="meta-row"><span>Sets: <b>${ex.sets}</b></span><span>Reps: <b>${ex.reps}</b></span><span>Rest: <b>${ex.rest}</b></span></div>`;
+    inner = `<div class="meta-row"><span>Sets: <b>${ex.sets}</b></span><span>Reps: <b>${ex.reps}</b></span><span>Rest: <b>${ex.rest||'—'}</b></span></div>`;
     inner += `<div id="sets-${ex.id}-${dateKey}">`;
     for(let i=0;i<ex.sets;i++){
       const w = saved && savedSets[i] ? savedSets[i].weight : '';
@@ -452,10 +688,22 @@ function exerciseCardHTML(ex, dateKey, savedSets){
   </div>`;
 }
 
+function customExerciseSectionHTML(dateKey){
+  return `<div class="card">
+    <h4>+ Add Custom Exercise</h4>
+    <p class="page-sub" style="margin:4px 0 10px;">Add an extra exercise for this day, alongside your normal routine.</p>
+    <input type="text" id="custom-name-${dateKey}" placeholder="Exercise name" style="margin-bottom:8px;">
+    <div style="display:flex; gap:8px; margin-bottom:8px;">
+      <input type="number" id="custom-sets-${dateKey}" placeholder="Sets" min="1" max="10">
+      <input type="text" id="custom-reps-${dateKey}" placeholder="Reps (e.g. 10-12)">
+    </div>
+    <button class="btn secondary small" onclick="addCustomExercise('${dateKey}')">Add Exercise</button>
+  </div>`;
+}
+
 function handleSaveExercise(exId, dateKey, type){
-  const dayName = dayNameForDate(parseDateKey(dateKey));
-  const plan = WORKOUT_PLAN[dayName];
-  const ex = plan.exercises.find(e=>e.id===exId);
+  const ex = findExerciseDef(exId, dateKey);
+  if(!ex) return;
   let sets = [];
   if(type==='strength'){
     for(let i=0;i<ex.sets;i++){
@@ -467,12 +715,16 @@ function handleSaveExercise(exId, dateKey, type){
     const v = document.getElementById(`c-${ex.id}-${dateKey}`).value;
     sets = [{ value: v }];
   }
-  const pr = saveExercise(dateKey, ex.name, type, sets);
+  const { sessionTotal } = saveExercise(dateKey, ex.name, type, sets);
   runPenaltyChecks();
+  triggerPointAnimation(sessionTotal);
   render();
-  if(pr){
-    setTimeout(()=>alert(`🔥 New PR on ${ex.name}! +1000 bonus points.`), 50);
-  }
+}
+
+function openPastLog(){
+  const val = document.getElementById('past-date-input').value;
+  if(!val) return;
+  navigate('pastlog', val);
 }
 
 function renderHome(){
@@ -485,14 +737,23 @@ function renderHome(){
   let html = `<div class="page-title">${dayName}</div>
   <div class="page-sub">${now.toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric', year:'numeric'})} — ${plan.focus}</div>`;
 
+  let cardsHtml = '';
   if(dayName==='Sunday' && plan.exercises.length===0){
-    html += `<div class="card"><h4>Rest Day</h4><p class="page-sub" style="margin:6px 0 0;">No workout scheduled. Recover well.</p></div>`;
+    cardsHtml += `<div class="card"><h4>Rest Day</h4><p class="page-sub" style="margin:6px 0 0;">No workout scheduled. Recover well.</p></div>`;
   } else {
     plan.exercises.forEach(ex=>{
       const savedSets = dayEntry && dayEntry.entries[ex.name];
-      html += exerciseCardHTML(ex, todayKey, savedSets);
+      cardsHtml += exerciseCardHTML(ex, todayKey, savedSets);
     });
   }
+  if(dayEntry && dayEntry.customExercises && dayEntry.customExercises.length){
+    dayEntry.customExercises.forEach(ex=>{
+      const savedSets = dayEntry.entries[ex.name];
+      cardsHtml += exerciseCardHTML({...ex, type:'strength', rest:'—'}, todayKey, savedSets);
+    });
+  }
+  html += `<div class="cards-grid">${cardsHtml}</div>`;
+  html += customExerciseSectionHTML(todayKey);
 
   if(data.settings.allowPastEntries){
     html += `<div class="card">
@@ -506,12 +767,6 @@ function renderHome(){
   document.getElementById('app-content').innerHTML = html;
 }
 
-function openPastLog(){
-  const val = document.getElementById('past-date-input').value;
-  if(!val) return;
-  navigate('pastlog', val);
-}
-
 function renderPastLog(){
   const dateKey = pastLogDateKey;
   if(!dateKey){ navigate('home'); return; }
@@ -523,15 +778,49 @@ function renderPastLog(){
   let html = `<div class="page-title">Log: ${niceDate(dateKey)}</div>
   <div class="page-sub">${dayName} — ${plan.focus}</div>`;
 
+  let cardsHtml = '';
   if(plan.exercises.length===0){
-    html += `<div class="card"><h4>Rest Day</h4><p class="page-sub" style="margin:6px 0 0;">No workout scheduled for this day.</p></div>`;
+    cardsHtml += `<div class="card"><h4>Rest Day</h4><p class="page-sub" style="margin:6px 0 0;">No workout scheduled for this day.</p></div>`;
   } else {
     plan.exercises.forEach(ex=>{
       const savedSets = dayEntry && dayEntry.entries[ex.name];
-      html += exerciseCardHTML(ex, dateKey, savedSets);
+      cardsHtml += exerciseCardHTML(ex, dateKey, savedSets);
     });
   }
+  if(dayEntry && dayEntry.customExercises && dayEntry.customExercises.length){
+    dayEntry.customExercises.forEach(ex=>{
+      const savedSets = dayEntry.entries[ex.name];
+      cardsHtml += exerciseCardHTML({...ex, type:'strength', rest:'—'}, dateKey, savedSets);
+    });
+  }
+  html += `<div class="cards-grid">${cardsHtml}</div>`;
+  html += customExerciseSectionHTML(dateKey);
   html += `<button class="btn secondary small" onclick="navigate('home')">← Back to Today</button>`;
+  document.getElementById('app-content').innerHTML = html;
+}
+
+function renderUpcoming(){
+  const now = new Date();
+  let html = `<div class="page-title">Upcoming Workouts</div>
+  <div class="page-sub">Next 7 days — view only, entries can't be made here.</div>
+  <div class="cards-grid">`;
+  for(let i=1;i<=7;i++){
+    const d = addDays(now,i);
+    const dName = dayNameForDate(d);
+    const plan = WORKOUT_PLAN[dName];
+    html += `<div class="card">
+      <div class="row-between"><h4>${dName}</h4><span class="page-sub" style="margin:0;">${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>
+      <p class="page-sub" style="margin:4px 0 10px;">${plan.focus}</p>`;
+    if(plan.exercises.length===0){
+      html += `<p class="empty-msg" style="padding:8px 0;">Rest day</p>`;
+    } else {
+      plan.exercises.forEach(ex=>{
+        html += `<div class="log-entry"><span>${ex.name}</span><span style="color:var(--text-dim); font-size:12px;">${ex.type==='strength'?`${ex.sets} x ${ex.reps}`:ex.target}</span></div>`;
+      });
+    }
+    html += `</div>`;
+  }
+  html += `</div>`;
   document.getElementById('app-content').innerHTML = html;
 }
 
@@ -561,7 +850,6 @@ function renderProgress(){
   });
   html += `</div></div>`;
 
-  // body weight chart
   const bwInRange = data.bodyWeight.filter(e=> dateKeys.includes(e.date) );
   html += `<div class="card"><h4>Body Weight Trend</h4>`;
   if(bwInRange.length===0){
@@ -571,7 +859,6 @@ function renderProgress(){
   }
   html += `</div>`;
 
-  // workout day list
   html += `<div class="card"><h4>Workout Log</h4>`;
   const loggedDays = dateKeys.filter(k=>data.workouts[k] && Object.keys(data.workouts[k].entries).length>0).reverse();
   if(loggedDays.length===0){
@@ -615,7 +902,7 @@ function renderBodyWeight(){
   const nextDate = nextBodyWeightDate();
 
   let html = `<div class="page-title">Body Weight</div>
-  <div class="page-sub">Log once every 6 days. Window: Sunday 6:00 AM – Tuesday 12:00 PM.</div>`;
+  <div class="page-sub">Logging rewards +${BODYWEIGHT_LOG_REWARD.toLocaleString()} points, then locks for 6 days. Miss the Sunday 6:00 AM – Monday 11:59 PM window and you lose ${BODYWEIGHT_MISS_PENALTY.toLocaleString()} points. Entries can never be deleted or edited.</div>`;
 
   html += `<div class="card ${canLog?'':'locked-box'}">
     <div class="row-between"><h4>Enter Body Weight</h4>${canLog?'':`<span class="badge-locked">Locked</span>`}</div>
@@ -625,7 +912,7 @@ function renderBodyWeight(){
     <div style="margin-top:8px;">
       <button class="btn small" onclick="handleSaveBodyWeight()" ${canLog?'':'disabled'}>Save</button>
     </div>
-    ${canLog?'':`<p class="page-sub" style="margin-top:8px;">Next entry available: ${nextDate?niceDate(nextDate):'—'}</p>`}
+    ${canLog?'':`<p class="page-sub" style="margin-top:8px;">You can view your history below. Next entry available: ${nextDate?niceDate(nextDate):'—'}</p>`}
   </div>`;
 
   html += `<div class="card"><h4>History</h4>`;
@@ -643,23 +930,33 @@ function renderBodyWeight(){
 function handleSaveBodyWeight(){
   const val = document.getElementById('bw-input').value;
   if(!val || Number(val)<=0) return;
-  const ok = saveBodyWeight(val);
-  if(ok){ persist(); renderBodyWeight(); }
+  const result = saveBodyWeight(val);
+  if(result.ok){
+    runPenaltyChecks();
+    triggerPointAnimation(result.awarded);
+    renderBodyWeight();
+  }
 }
 
 function renderPoints(){
   const streak = computeStreak();
+  const tier = computeTier();
   let html = `<div class="page-title">Points &amp; Rewards</div>
   <div class="page-sub">Earn points by staying consistent. Lose points for missing entries.</div>
   <div class="stat-grid">
-    <div class="stat-box"><div class="num ${data.points>=0?'pos':'neg'}">${data.points}</div><div class="lbl">TOTAL POINTS</div></div>
+    <div class="stat-box"><div class="num ${data.points>=0?'pos':'neg'}">${data.points.toLocaleString()}</div><div class="lbl">TOTAL POINTS</div></div>
     <div class="stat-box"><div class="num pos">${streak}</div><div class="lbl">DAY STREAK</div></div>
+  </div>
+  <div class="card" style="text-align:center;">
+    <div class="page-sub" style="margin-bottom:6px;">CURRENT TIER</div>
+    <div style="font-size:26px; font-weight:900; color:${tier.color};">${tier.name}</div>
+    ${data.forcedBronzeActive?`<p class="page-sub" style="margin-top:6px;">Locked to Bronze — you missed the weekly minimum of 5 workout days. Log 5+ days this week to recover.</p>`:''}
   </div>
   <div class="card">
     <h4>How to earn</h4>
-    <p class="page-sub" style="margin-top:6px;">+25 pts per exercise logged &nbsp;•&nbsp; +1000 pts for a new heavy lift PR (vs last 7 days)</p>
+    <p class="page-sub" style="margin-top:6px;">+${FIRST_ENTRY_BONUS.toLocaleString()} pts one-time bonus on your very first entry &nbsp;•&nbsp; +${PER_SET_POINTS} pts per set / exercise logged &nbsp;•&nbsp; +${PR_REWARD.toLocaleString()} pts for a new PR (heavier than any lift in the last 7 days) &nbsp;•&nbsp; +${BODYWEIGHT_LOG_REWARD.toLocaleString()} pts every time you log body weight</p>
     <h4 style="margin-top:10px;">How you lose points</h4>
-    <p class="page-sub" style="margin-top:6px;">-5000 pts &amp; streak reset for missing the weekly body weight window &nbsp;•&nbsp; -50000 pts for 3+ days with no logged activity</p>
+    <p class="page-sub" style="margin-top:6px;">-${BODYWEIGHT_MISS_PENALTY.toLocaleString()} pts for missing the body weight window (Sun 6AM–Mon 11:59PM) &nbsp;•&nbsp; -${GAP_PENALTY.toLocaleString()} pts for 2+ continuous days with no exercise logged &nbsp;•&nbsp; -${WEEKLY_MISS_PENALTY.toLocaleString()} pts and an immediate drop to Bronze tier for logging fewer than 5 workout days in a week</p>
   </div>
   <div class="card"><h4>Activity Log</h4>`;
   if(data.pointsLog.length===0){
@@ -667,7 +964,7 @@ function renderPoints(){
   } else {
     data.pointsLog.slice(0,60).forEach(l=>{
       const dt = new Date(l.ts);
-      html += `<div class="log-entry"><span>${l.reason}<br><span style="color:var(--text-dim); font-size:11px;">${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></span><span class="${l.delta>=0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta}</span></div>`;
+      html += `<div class="log-entry"><span>${l.reason}<br><span style="color:var(--text-dim); font-size:11px;">${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></span><span class="${l.delta>=0?'pos':'neg'}">${l.delta>0?'+':''}${l.delta.toLocaleString()}</span></div>`;
     });
   }
   html += `</div>`;
@@ -691,7 +988,7 @@ function renderSettings(){
   </div>
   <div class="card">
     <h4>About</h4>
-    <p class="page-sub" style="margin-top:6px;">Exercises, sets, reps and rest times are pre-loaded and cannot be edited. Only body weight entries are user-editable.</p>
+    <p class="page-sub" style="margin-top:6px;">Preloaded exercises, sets, reps and rest times cannot be edited — you can only add extra custom exercises alongside them and log body weight. No entry can ever be deleted once saved. Your data is stored on this device (localStorage + IndexedDB) and is retained indefinitely, well beyond 12 months, unless you or your browser explicitly clears site data — a guarantee no purely on-device web app can override, especially in private/incognito windows.</p>
   </div>`;
   document.getElementById('app-content').innerHTML = html;
 }
@@ -703,6 +1000,7 @@ function toggleAllowPast(){
 function render(){
   if(currentView==='home') renderHome();
   else if(currentView==='progress') renderProgress();
+  else if(currentView==='upcoming') renderUpcoming();
   else if(currentView==='bodyweight') renderBodyWeight();
   else if(currentView==='points') renderPoints();
   else if(currentView==='settings') renderSettings();
@@ -713,6 +1011,8 @@ function render(){
 function initApp(){
   runPenaltyChecks();
   render();
+  reconcileStorage();
+  detectPrivateModeAndWarn();
 }
 
 window.addEventListener('load', ()=>{
