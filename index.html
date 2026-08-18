@@ -110,6 +110,9 @@ body{min-height:100vh; overflow-x:hidden;}
 .set-row{display:grid; grid-template-columns:36px 1fr 1fr; gap:8px; align-items:center; margin-bottom:6px;}
 .set-row span{color:var(--text-dim); font-size:12px;}
 .locked-val{background:#0e0e0e; border:1px solid var(--border); border-radius:6px; padding:8px; color:var(--text-dim); text-align:center; font-size:13px;}
+.drop-row{margin-left:20px; padding-left:10px; border-left:2px dashed var(--border); margin-bottom:6px;}
+.pencil-btn{background:none; border:1px solid var(--border); color:var(--text-dim); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer;}
+.pencil-btn:hover{border-color:var(--yellow); color:var(--yellow);}
 input[type=number], input[type=text], input[type=date]{
   width:100%; background:#0e0e0e; border:1px solid var(--border); color:var(--text); border-radius:6px; padding:8px; font-size:14px;
 }
@@ -199,7 +202,7 @@ svg.linechart{width:100%; height:140px;}
    (localStorage + IndexedDB), points/rewards + tier system
    ============================================================ */
 
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.5';
 const STORAGE_KEY = 'alphaWorkoutData_v1';
 const IDB_NAME = 'AlphaWorkoutDB';
 const IDB_STORE = 'state';
@@ -266,6 +269,16 @@ const WORKOUT_PLAN = {
 
 /* ---------------- changelog ---------------- */
 const CHANGELOG = [
+  { version:'1.0.5', items:[
+    'Added a pencil icon under each strength exercise to attach a drop set to any set that has not been logged yet.',
+    'Picking a set from the pencil menu adds nested drop-weight/drop-reps fields to that set — the option list always matches however many sets the exercise has.',
+    'Drop sets save and lock together with their parent set (locked sets still cannot be edited) and show up in Track Progress history too.'
+  ]},
+  { version:'1.0.4', items:[
+    'Confirmed Silver tier unlocks at exactly 10,000 points.',
+    'The body weight entry box is now locked and faded outside its weekly window — opens Sunday 6:00 AM, closes Monday 11:59 PM.',
+    '"Skip a Day" now requires Silver tier or higher. It stays visible but locked and faded at Bronze, and re-locks automatically if you drop back to Bronze.'
+  ]},
   { version:'1.0.3', items:[
     'The app now asks for your name once, right after the splash screen, and quietly starts your points at a clean 0.',
     'Logged sets and exercises are now locked once saved — you can still see them, but they can no longer be edited.',
@@ -307,7 +320,7 @@ const CARDIO_DAILY_CAP = 500;   // max points/day from calorie-based cardio logg
 const TIERS = [
   { name:'Platinum', min:75000, color:'var(--green)' },
   { name:'Gold',      min:30000, color:'var(--yellow)' },
-  { name:'Silver',    min:10000, color:'#c0c0c0' },
+  { name:'Silver',    min:10000, color:'#c0c0c0' },   // 10,000 pts unlocks Silver
   { name:'Bronze',    min:-Infinity, color:'#a97142' }
 ];
 
@@ -492,9 +505,12 @@ function getEffectivePlan(dateKey){
   const sourceDayName = WEEK_ORDER[idx-1];
   return { plan: WORKOUT_PLAN[sourceDayName], note:`Rescheduled from ${sourceDayName}`, isSkippedDay:false };
 }
+// Skip a Day is locked below Silver tier, only usable once per week, and Sunday can't be skipped (already rest).
 function canSkipToday(now){
   const idx = dayIndexMonBased(now);
   if(idx===6) return { ok:false, reason:'Sunday is already a rest day — nothing to skip.' };
+  const tier = computeTier();
+  if(tier.name==='Bronze') return { ok:false, reason:'Unlocks at Silver tier and above.' };
   const weekKey = formatDateKey(getMondayOfWeek(now));
   if(data.skips[weekKey]) return { ok:false, reason:'You already used your skip for this week. It resets Monday.' };
   return { ok:true };
@@ -511,7 +527,7 @@ function skipToday(){
 
 /* ---------------- penalty engine ---------------- */
 function bodyWeightWindow(sunday){
-  // Sunday 7:00 AM through Monday 11:59:59 PM
+  // Sunday 7:00 AM through Monday 11:59:59 PM (used for the points-penalty check)
   const start=new Date(sunday); start.setHours(7,0,0,0);
   const end=addDays(sunday,1); end.setHours(23,59,59,999);
   return {start,end};
@@ -720,15 +736,56 @@ function addCustomExercise(dateKey){
   if(currentView==='pastlog') renderPastLog(); else renderHome();
 }
 
+/* ---------------- drop sets (transient pre-save UI state, cleared after saving) ---------------- */
+let dropPickerOpen = {};   // `${dateKey}::${exId}` -> bool (is the "choose a set" picker open)
+let pendingDropSets = {};  // `${dateKey}::${exId}` -> Set of set indices flagged to get drop-set fields
+function dropKey(dateKey, exId){ return `${dateKey}::${exId}`; }
+function rerenderCurrentDayView(){
+  if(currentView==='home') renderHome();
+  else if(currentView==='pastlog') renderPastLog();
+}
+function toggleDropPicker(exId, dateKey){
+  const key = dropKey(dateKey, exId);
+  dropPickerOpen[key] = !dropPickerOpen[key];
+  rerenderCurrentDayView();
+}
+function addPendingDropSet(exId, dateKey, index){
+  const key = dropKey(dateKey, exId);
+  pendingDropSets[key] = pendingDropSets[key] || new Set();
+  pendingDropSets[key].add(index);
+  dropPickerOpen[key] = false;
+  rerenderCurrentDayView();
+}
+function removePendingDropSet(exId, dateKey, index){
+  const key = dropKey(dateKey, exId);
+  if(pendingDropSets[key]) pendingDropSets[key].delete(index);
+  rerenderCurrentDayView();
+}
+
 /* ---------------- body weight ---------------- */
 function lastBodyWeightEntry(){
   if(data.bodyWeight.length===0) return null;
   return data.bodyWeight[data.bodyWeight.length-1];
 }
-function canLogBodyWeight(){
+// Weekly entry window for the input box itself: opens Sunday 6:00 AM, closes Monday 11:59:59 PM.
+// This is separate from the points-penalty window (bodyWeightWindow, Sun 7AM), and separate
+// from the 6-day cooldown that starts after a successful log.
+function bodyWeightEntryWindow(sunday){
+  const start=new Date(sunday); start.setHours(6,0,0,0);
+  const end=addDays(sunday,1); end.setHours(23,59,59,999);
+  return {start,end};
+}
+function isBodyWeightEntryWindowOpen(now){
+  const sunday = getSundayOfWeek(now);
+  const {start,end} = bodyWeightEntryWindow(sunday);
+  return now>=start && now<=end;
+}
+function canLogBodyWeight(now){
+  now = now || new Date();
+  if(!isBodyWeightEntryWindowOpen(now)) return false;
   const last = lastBodyWeightEntry();
   if(!last) return true;
-  const days = diffDays(new Date(), parseDateKey(last.date));
+  const days = diffDays(now, parseDateKey(last.date));
   return days>=6;
 }
 function nextBodyWeightDate(){
@@ -799,21 +856,34 @@ function exerciseCardHTML(ex, dateKey, savedSets, awardedState){
   let inner = '';
   let allLocked = false;
   if(ex.type==='strength'){
+    const key = dropKey(dateKey, ex.id);
+    const pending = pendingDropSets[key] || new Set();
+    const pickerOpen = !!dropPickerOpen[key];
+
     inner = `<div class="meta-row"><span>Sets: <b>${ex.sets}</b></span><span>Reps: <b>${ex.reps}</b></span><span>Rest: <b>${ex.rest||'—'}</b></span></div>`;
     inner += `<div id="sets-${ex.id}-${dateKey}">`;
     let lockedCount = 0;
+    const eligibleForDrop = [];
     for(let i=0;i<ex.sets;i++){
       const isLocked = !!(awardedState && awardedState[i]);
       if(isLocked){
         lockedCount++;
-        const w = savedSets && savedSets[i] ? savedSets[i].weight : 0;
-        const r = savedSets && savedSets[i] ? savedSets[i].reps : 0;
+        const savedSet = savedSets && savedSets[i] ? savedSets[i] : {};
+        const w = savedSet.weight||0, r = savedSet.reps||0;
         inner += `<div class="set-row">
           <span>#${i+1}</span>
           <div class="locked-val">${w} kg 🔒</div>
           <div class="locked-val">${r} reps 🔒</div>
         </div>`;
+        if(savedSet.drop){
+          inner += `<div class="set-row drop-row" style="grid-template-columns:30px 1fr 1fr;">
+            <span>↳</span>
+            <div class="locked-val">${savedSet.drop.weight||0} kg 🔒</div>
+            <div class="locked-val">${savedSet.drop.reps||0} reps 🔒</div>
+          </div>`;
+        }
       } else {
+        eligibleForDrop.push(i);
         const w = savedSets && savedSets[i] ? savedSets[i].weight : '';
         const r = savedSets && savedSets[i] ? savedSets[i].reps : '';
         inner += `<div class="set-row">
@@ -821,10 +891,29 @@ function exerciseCardHTML(ex, dateKey, savedSets, awardedState){
           <input type="number" min="0" placeholder="weight (kg)" id="w-${ex.id}-${dateKey}-${i}" value="${w}">
           <input type="number" min="0" placeholder="reps" id="r-${ex.id}-${dateKey}-${i}" value="${r}">
         </div>`;
+        if(pending.has(i)){
+          inner += `<div class="set-row drop-row" style="grid-template-columns:30px 1fr 1fr;">
+            <span>↳</span>
+            <input type="number" min="0" placeholder="drop weight (kg)" id="dw-${ex.id}-${dateKey}-${i}">
+            <input type="number" min="0" placeholder="drop reps" id="dr-${ex.id}-${dateKey}-${i}">
+          </div>
+          <div style="margin:-2px 0 8px 20px;"><button type="button" class="pencil-btn" onclick="removePendingDropSet('${ex.id}','${dateKey}',${i})">✕ Remove drop set</button></div>`;
+        }
       }
     }
     inner += `</div>`;
     allLocked = lockedCount === ex.sets;
+
+    // pencil control: only offer it while there's at least one unlocked set left to attach a drop set to
+    const stillEligible = eligibleForDrop.filter(i=>!pending.has(i));
+    if(!allLocked && stillEligible.length>0){
+      inner += `<div style="margin-top:4px;"><button type="button" class="pencil-btn" onclick="toggleDropPicker('${ex.id}','${dateKey}')">✏️ Add Drop Set</button></div>`;
+      if(pickerOpen){
+        inner += `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+          ${stillEligible.map(i=>`<button type="button" class="btn secondary small" onclick="addPendingDropSet('${ex.id}','${dateKey}',${i})">Set ${i+1}</button>`).join('')}
+        </div>`;
+      }
+    }
   } else {
     const locked = awardedState===true;
     allLocked = locked;
@@ -869,6 +958,8 @@ function handleSaveExercise(exId, dateKey, type){
   const dayEntry = data.workouts[dateKey];
   const prevAwarded = dayEntry && dayEntry.awarded && dayEntry.awarded[ex.name];
   const prevSets = dayEntry && dayEntry.entries && dayEntry.entries[ex.name];
+  const dKey = dropKey(dateKey, exId);
+  const pending = pendingDropSets[dKey];
   let sets = [];
   if(type==='strength'){
     for(let i=0;i<ex.sets;i++){
@@ -878,7 +969,17 @@ function handleSaveExercise(exId, dateKey, type){
       } else {
         const wEl = document.getElementById(`w-${ex.id}-${dateKey}-${i}`);
         const rEl = document.getElementById(`r-${ex.id}-${dateKey}-${i}`);
-        sets.push({ weight: wEl ? (wEl.value||0) : 0, reps: rEl ? (rEl.value||0) : 0 });
+        const setObj = { weight: wEl ? (wEl.value||0) : 0, reps: rEl ? (rEl.value||0) : 0 };
+        if(pending && pending.has(i)){
+          const dwEl = document.getElementById(`dw-${ex.id}-${dateKey}-${i}`);
+          const drEl = document.getElementById(`dr-${ex.id}-${dateKey}-${i}`);
+          const dw = dwEl ? dwEl.value : '';
+          const dr = drEl ? drEl.value : '';
+          if((dw && Number(dw)>0) || (dr && Number(dr)>0)){
+            setObj.drop = { weight: dw||0, reps: dr||0 };
+          }
+        }
+        sets.push(setObj);
       }
     }
   } else {
@@ -891,6 +992,9 @@ function handleSaveExercise(exId, dateKey, type){
     }
   }
   const { sessionTotal } = saveExercise(dateKey, ex.name, type, sets, ex);
+  // clear transient drop-set UI state for this exercise now that everything is locked in
+  delete pendingDropSets[dKey];
+  delete dropPickerOpen[dKey];
   runPenaltyChecks();
   triggerPointAnimation(sessionTotal);
   render();
@@ -1090,7 +1194,11 @@ function renderHistoryDetail(dateKey){
     if(sets[0] && Object.prototype.hasOwnProperty.call(sets[0],'value')){
       detail = sets.map(s=>s.value).join(', ');
     } else {
-      detail = sets.map((s,i)=>`Set ${i+1}: ${s.weight||0}kg × ${s.reps||0}`).join(' · ');
+      detail = sets.map((s,i)=>{
+        let line = `Set ${i+1}: ${s.weight||0}kg × ${s.reps||0}`;
+        if(s.drop){ line += ` (drop: ${s.drop.weight||0}kg × ${s.drop.reps||0})`; }
+        return line;
+      }).join(' · ');
     }
     html += `<div style="padding:6px 0; border-bottom:1px solid var(--border);">
       <div style="color:var(--yellow); font-size:13px;">${name}</div>
@@ -1122,12 +1230,24 @@ function renderLineChart(entries){
 }
 
 function renderBodyWeight(){
-  const canLog = canLogBodyWeight();
+  const now = new Date();
+  const windowOpen = isBodyWeightEntryWindowOpen(now);
   const last = lastBodyWeightEntry();
+  const cooldownOk = !last || diffDays(now, parseDateKey(last.date))>=6;
+  const canLog = windowOpen && cooldownOk;
   const nextDate = nextBodyWeightDate();
 
+  let lockedMsg = '';
+  if(!canLog){
+    if(!windowOpen){
+      lockedMsg = `Entry is closed right now. It opens every Sunday at 6:00 AM and closes Monday at 11:59 PM.`;
+    } else {
+      lockedMsg = `You can view your history below. Next entry available: ${nextDate?niceDate(nextDate):'—'}`;
+    }
+  }
+
   let html = `<div class="page-title">Body Weight</div>
-  <div class="page-sub">Logging rewards +${BODYWEIGHT_LOG_REWARD.toLocaleString()} points, then locks for 6 days. Miss the Sunday 7:00 AM – Monday 11:59 PM window and you lose ${BODYWEIGHT_MISS_PENALTY.toLocaleString()} points — and it can go negative and compound further each week you keep missing it. Entries can never be deleted or edited.</div>`;
+  <div class="page-sub">Logging rewards +${BODYWEIGHT_LOG_REWARD.toLocaleString()} points, then locks for 6 days. Entry is only open Sunday 6:00 AM – Monday 11:59 PM. Miss the Sunday 7:00 AM – Monday 11:59 PM window and you lose ${BODYWEIGHT_MISS_PENALTY.toLocaleString()} points — and it can go negative and compound further each week you keep missing it. Entries can never be deleted or edited.</div>`;
 
   html += `<div class="card ${canLog?'':'locked-box'}">
     <div class="row-between"><h4>Enter Body Weight</h4>${canLog?'':`<span class="badge-locked">Locked</span>`}</div>
@@ -1137,7 +1257,7 @@ function renderBodyWeight(){
     <div style="margin-top:8px;">
       <button class="btn small" onclick="handleSaveBodyWeight()" ${canLog?'':'disabled'}>Save</button>
     </div>
-    ${canLog?'':`<p class="page-sub" style="margin-top:8px;">You can view your history below. Next entry available: ${nextDate?niceDate(nextDate):'—'}</p>`}
+    ${canLog?'':`<p class="page-sub" style="margin-top:8px;">${lockedMsg}</p>`}
   </div>`;
 
   html += `<div class="card"><h4>History</h4>`;
@@ -1175,6 +1295,7 @@ function renderPoints(){
   <div class="card" style="text-align:center;">
     <div class="page-sub" style="margin-bottom:6px;">CURRENT TIER</div>
     <div style="font-size:26px; font-weight:900; color:${tier.color};">${tier.name}</div>
+    <p class="page-sub" style="margin-top:6px;">Bronze &lt; 10,000 &nbsp;•&nbsp; Silver 10,000+ &nbsp;•&nbsp; Gold 30,000+ &nbsp;•&nbsp; Platinum 75,000+</p>
     ${data.forcedBronzeActive?`<p class="page-sub" style="margin-top:6px;">Locked to Bronze — you missed the weekly minimum of 5 workout days. Log 5+ days this week to recover.</p>`:''}
   </div>
   <div class="card">
@@ -1230,7 +1351,7 @@ function renderSettings(){
   </div>
   <div class="card ${skipCheck.ok?'':'locked-box'}">
     <div class="row-between"><h4>Skip a Day</h4>${skipCheck.ok?'':'<span class="badge-locked">Locked</span>'}</div>
-    <p class="page-sub" style="margin:4px 0 10px;">Can't make it to the gym today? Skip today's workout — it moves to tomorrow, and every day after shifts forward too. Your rest day gets used up this week instead of carrying over. One skip per week, resets Monday.</p>
+    <p class="page-sub" style="margin:4px 0 10px;">Can't make it to the gym today? Skip today's workout — it moves to tomorrow, and every day after shifts forward too. Your rest day gets used up this week instead of carrying over. Requires Silver tier or higher. One skip per week, resets Monday.</p>
     <button class="btn small" onclick="handleSkipToday()" ${skipCheck.ok?'':'disabled'}>Skip Today's Workout</button>
     ${skipCheck.ok?'':`<p class="page-sub" style="margin-top:8px;">${skipCheck.reason}</p>`}
   </div>
