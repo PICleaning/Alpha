@@ -202,13 +202,14 @@ svg.linechart{width:100%; height:140px;}
    (localStorage + IndexedDB), points/rewards + tier system
    ============================================================ */
 
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 const STORAGE_KEY = 'alphaWorkoutData_v1';
 const IDB_NAME = 'AlphaWorkoutDB';
 const IDB_STORE = 'state';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const WEEK_ORDER = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const PROGRAM_TOTAL_WEEKS = 4;
 
 const WORKOUT_PLAN = {
   Monday: { focus:'Back (Width Focus) + Stairmaster', exercises:[
@@ -269,6 +270,12 @@ const WORKOUT_PLAN = {
 
 /* ---------------- changelog ---------------- */
 const CHANGELOG = [
+  { version:'1.0.6', items:[
+    'Added a Goal / Target Weight section to the Body Weight tab. Set it once and it locks — cannot be changed or removed until it automatically expires and reopens for re-entry after 8 weeks.',
+    'Tier system revised: Bronze covers 0-29,999 points, Silver unlocks at 30,000, and Platinum unlocks at 100,000 (Gold tier retired).',
+    'New "4x Points Wednesdays" setting, unlocked at Silver tier and above. When activated, every exercise you log earns 4x points from 12:00 AM to 11:59 PM each Wednesday.',
+    'Upcoming Workouts now shows how many weeks are left in the current 4-week program before the next one begins.'
+  ]},
   { version:'1.0.5', items:[
     'Added a pencil icon under each strength exercise to attach a drop set to any set that has not been logged yet.',
     'Picking a set from the pencil menu adds nested drop-weight/drop-reps fields to that set — the option list always matches however many sets the exercise has.',
@@ -316,11 +323,12 @@ const BODYWEIGHT_MISS_PENALTY = 10000;
 const GAP_PENALTY = 10000;      // 2+ continuous days with no exercise logged
 const WEEKLY_MISS_PENALTY = 50000; // fewer than 5 workout days in a Mon-Sun week
 const CARDIO_DAILY_CAP = 500;   // max points/day from calorie-based cardio logging
+const WEDNESDAY_MULTIPLIER = 4;
+const GOAL_WEIGHT_LOCK_DAYS = 56; // 8 weeks
 
 const TIERS = [
-  { name:'Platinum', min:75000, color:'var(--green)' },
-  { name:'Gold',      min:30000, color:'var(--yellow)' },
-  { name:'Silver',    min:10000, color:'#c0c0c0' },   // 10,000 pts unlocks Silver
+  { name:'Platinum', min:100000, color:'var(--green)' },
+  { name:'Silver',    min:30000, color:'#c0c0c0' },
   { name:'Bronze',    min:-Infinity, color:'#a97142' }
 ];
 
@@ -367,8 +375,9 @@ function defaultData(){
     points: 0,
     pointsLog: [],
     bodyWeight: [],
+    targetWeight: null, // { weight, setDate }
     workouts: {},
-    settings: { allowPastEntries:false },
+    settings: { allowPastEntries:false, wednesday4x:false },
     penalizedBodyWeightWeeks: [],
     evaluatedWeeks: [],
     gapPenaltyAppliedFor: null,
@@ -383,7 +392,9 @@ function loadData(){
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return defaultData();
     const parsed = JSON.parse(raw);
-    return Object.assign(defaultData(), parsed);
+    const merged = Object.assign(defaultData(), parsed);
+    merged.settings = Object.assign({ allowPastEntries:false, wednesday4x:false }, parsed.settings||{});
+    return merged;
   }catch(e){ return defaultData(); }
 }
 let data = loadData();
@@ -482,8 +493,16 @@ function computeStreak(){
   return count;
 }
 function computeTier(){
-  if(data.forcedBronzeActive) return TIERS[3];
+  if(data.forcedBronzeActive) return TIERS[TIERS.length-1]; // Bronze is always last in the list
   return TIERS.find(t=>data.points>=t.min);
+}
+// 4x Wednesday multiplier: requires the setting to be on, Silver tier or above right now, and it being Wednesday.
+function activeMultiplier(now){
+  now = now || new Date();
+  if(data.settings.wednesday4x && computeTier().name!=='Bronze' && now.getDay()===3){
+    return WEDNESDAY_MULTIPLIER;
+  }
+  return 1;
 }
 
 /* ---------------- skip-a-day (workout rescheduling) ---------------- */
@@ -523,6 +542,17 @@ function skipToday(){
   data.skips[weekKey] = { dayIndex: dayIndexMonBased(now), skippedDate: formatDateKey(now), appliedAt: Date.now() };
   persist();
   return { ok:true };
+}
+
+/* ---------------- program length countdown (Upcoming Workouts) ---------------- */
+function getProgramStatus(now){
+  now = now || new Date();
+  const programStartMonday = getMondayOfWeek(parseDateKey(data.createdAt));
+  const currentMonday = getMondayOfWeek(now);
+  const weeksElapsed = Math.max(0, Math.floor(diffDays(currentMonday, programStartMonday)/7));
+  const weeksRemaining = Math.max(0, PROGRAM_TOTAL_WEEKS - weeksElapsed);
+  const currentWeekNum = Math.min(weeksElapsed+1, PROGRAM_TOTAL_WEEKS);
+  return { weeksElapsed, weeksRemaining, currentWeekNum, totalWeeks: PROGRAM_TOTAL_WEEKS, complete: weeksRemaining<=0 };
 }
 
 /* ---------------- penalty engine ---------------- */
@@ -659,6 +689,7 @@ function saveExercise(dateKey, exerciseName, type, sets, ex){
   const dayEntry = ensureDayEntry(dateKey);
   dayEntry.entries[exerciseName] = sets;
   let sessionTotal = 0;
+  const mult = activeMultiplier(); // based on the real current moment, not the logged date
 
   function grantFirstEntryIfNeeded(){
     if(!data.firstEntryAwarded){
@@ -675,8 +706,9 @@ function saveExercise(dateKey, exerciseName, type, sets, ex){
       const filled = (Number(s.weight)>0 || Number(s.reps)>0);
       if(filled && !prevAwarded[i]){
         grantFirstEntryIfNeeded();
-        awardPoints(PER_SET_POINTS, `Set ${i+1} — ${exerciseName}`);
-        sessionTotal += PER_SET_POINTS;
+        const pts = PER_SET_POINTS * mult;
+        awardPoints(pts, `Set ${i+1} — ${exerciseName}${mult>1?` (x${mult} Wed bonus)`:''}`);
+        sessionTotal += pts;
       }
     });
     dayEntry.awarded[exerciseName] = newAwarded;
@@ -689,15 +721,17 @@ function saveExercise(dateKey, exerciseName, type, sets, ex){
       if(isCalorieCardio(ex)){
         const cal = Math.max(0, Math.round(Number(rawVal))||0);
         const remainingCap = Math.max(0, CARDIO_DAILY_CAP - dayEntry.cardioPointsAwarded);
-        const grant = Math.min(cal, remainingCap);
+        const grant = Math.min(cal, remainingCap); // cap is based on base (pre-multiplier) calories-to-points
         if(grant>0){
-          awardPoints(grant, `${exerciseName} — ${cal} cal burned`);
-          sessionTotal += grant;
+          const pts = grant * mult;
+          awardPoints(pts, `${exerciseName} — ${cal} cal burned${mult>1?` (x${mult} Wed bonus)`:''}`);
+          sessionTotal += pts;
           dayEntry.cardioPointsAwarded += grant;
         }
       } else {
-        awardPoints(PER_SET_POINTS, `${exerciseName} logged`);
-        sessionTotal += PER_SET_POINTS;
+        const pts = PER_SET_POINTS * mult;
+        awardPoints(pts, `${exerciseName} logged${mult>1?` (x${mult} Wed bonus)`:''}`);
+        sessionTotal += pts;
       }
       dayEntry.awarded[exerciseName] = true;
     }
@@ -799,6 +833,25 @@ function saveBodyWeight(weightVal){
   awardPoints(BODYWEIGHT_LOG_REWARD, 'Body weight logged');
   persist();
   return { ok:true, awarded: BODYWEIGHT_LOG_REWARD };
+}
+
+/* ---------------- goal / target weight (locked once set, 8-week auto-expiry) ---------------- */
+function checkTargetWeightExpiry(now){
+  now = now || new Date();
+  if(data.targetWeight){
+    const days = diffDays(now, parseDateKey(data.targetWeight.setDate));
+    if(days>=GOAL_WEIGHT_LOCK_DAYS){
+      data.targetWeight = null;
+      persist();
+    }
+  }
+}
+function saveTargetWeight(weightVal){
+  checkTargetWeightExpiry();
+  if(data.targetWeight) return false; // already set and still locked
+  data.targetWeight = { weight: Number(weightVal), setDate: formatDateKey(new Date()) };
+  persist();
+  return true;
 }
 
 /* ---------------- name gate (first run only) ---------------- */
@@ -904,7 +957,6 @@ function exerciseCardHTML(ex, dateKey, savedSets, awardedState){
     inner += `</div>`;
     allLocked = lockedCount === ex.sets;
 
-    // pencil control: only offer it while there's at least one unlocked set left to attach a drop set to
     const stillEligible = eligibleForDrop.filter(i=>!pending.has(i));
     if(!allLocked && stillEligible.length>0){
       inner += `<div style="margin-top:4px;"><button type="button" class="pencil-btn" onclick="toggleDropPicker('${ex.id}','${dateKey}')">✏️ Add Drop Set</button></div>`;
@@ -1019,6 +1071,9 @@ function renderHome(){
   if(note){
     html += `<div class="card notice-card"><p>🔁 ${note}</p></div>`;
   }
+  if(activeMultiplier(now)>1){
+    html += `<div class="card notice-card" style="border-color:var(--green);"><p style="color:var(--green);">⚡ 4x Points Wednesday is active right now!</p></div>`;
+  }
 
   let cardsHtml = '';
   if(isSkippedDay){
@@ -1068,6 +1123,9 @@ function renderPastLog(){
   if(note){
     html += `<div class="card notice-card"><p>🔁 ${note}</p></div>`;
   }
+  if(activeMultiplier(new Date())>1){
+    html += `<div class="card notice-card" style="border-color:var(--green);"><p style="color:var(--green);">⚡ 4x Points Wednesday is active right now!</p></div>`;
+  }
 
   let cardsHtml = '';
   if(isSkippedDay){
@@ -1096,8 +1154,15 @@ function renderPastLog(){
 
 function renderUpcoming(){
   const now = new Date();
+  const prog = getProgramStatus(now);
+
   let html = `<div class="page-title">Upcoming Workouts</div>
   <div class="page-sub">Next 7 days — view only, entries can't be made here.</div>
+  <div class="card notice-card" style="border-color:var(--green);">
+    <p style="color:var(--green);">📆 ${prog.complete
+      ? `This ${prog.totalWeeks}-week program is complete! A new workout plan is coming soon.`
+      : `Current Program: Week ${prog.currentWeekNum} of ${prog.totalWeeks} — ${prog.weeksRemaining} week${prog.weeksRemaining===1?'':'s'} remaining before your next plan.`}</p>
+  </div>
   <div class="cards-grid">`;
   for(let i=1;i<=7;i++){
     const d = addDays(now,i);
@@ -1230,6 +1295,8 @@ function renderLineChart(entries){
 }
 
 function renderBodyWeight(){
+  checkTargetWeightExpiry(new Date());
+
   const now = new Date();
   const windowOpen = isBodyWeightEntryWindowOpen(now);
   const last = lastBodyWeightEntry();
@@ -1248,6 +1315,24 @@ function renderBodyWeight(){
 
   let html = `<div class="page-title">Body Weight</div>
   <div class="page-sub">Logging rewards +${BODYWEIGHT_LOG_REWARD.toLocaleString()} points, then locks for 6 days. Entry is only open Sunday 6:00 AM – Monday 11:59 PM. Miss the Sunday 7:00 AM – Monday 11:59 PM window and you lose ${BODYWEIGHT_MISS_PENALTY.toLocaleString()} points — and it can go negative and compound further each week you keep missing it. Entries can never be deleted or edited.</div>`;
+
+  // Goal / Target Weight — always visible, locked once set, auto-expires after 8 weeks
+  if(data.targetWeight){
+    const daysSince = diffDays(now, parseDateKey(data.targetWeight.setDate));
+    const daysLeft = Math.max(0, GOAL_WEIGHT_LOCK_DAYS - daysSince);
+    html += `<div class="card">
+      <div class="row-between"><h4>🎯 Goal Weight</h4><span class="badge-locked">Locked</span></div>
+      <p style="font-size:22px; font-weight:800; color:var(--green); margin-top:6px;">${data.targetWeight.weight} kg</p>
+      <p class="page-sub" style="margin-top:6px;">Set on ${niceDate(data.targetWeight.setDate)}. Can't be changed or removed — reopens for re-entry in ${daysLeft} day${daysLeft===1?'':'s'}.</p>
+    </div>`;
+  } else {
+    html += `<div class="card">
+      <h4>🎯 Goal Weight</h4>
+      <p class="page-sub" style="margin:4px 0 10px;">Set your target weight. Once saved it locks for 8 weeks and can't be changed or removed until it expires.</p>
+      <input type="number" id="goal-input" placeholder="Target weight (kg)">
+      <div style="margin-top:8px;"><button class="btn small" onclick="handleSaveGoalWeight()">Set Goal</button></div>
+    </div>`;
+  }
 
   html += `<div class="card ${canLog?'':'locked-box'}">
     <div class="row-between"><h4>Enter Body Weight</h4>${canLog?'':`<span class="badge-locked">Locked</span>`}</div>
@@ -1282,6 +1367,13 @@ function handleSaveBodyWeight(){
     renderBodyWeight();
   }
 }
+function handleSaveGoalWeight(){
+  const el = document.getElementById('goal-input');
+  const val = el.value;
+  if(!val || Number(val)<=0) return;
+  const ok = saveTargetWeight(val);
+  if(ok) renderBodyWeight();
+}
 
 function renderPoints(){
   const streak = computeStreak();
@@ -1295,12 +1387,12 @@ function renderPoints(){
   <div class="card" style="text-align:center;">
     <div class="page-sub" style="margin-bottom:6px;">CURRENT TIER</div>
     <div style="font-size:26px; font-weight:900; color:${tier.color};">${tier.name}</div>
-    <p class="page-sub" style="margin-top:6px;">Bronze &lt; 10,000 &nbsp;•&nbsp; Silver 10,000+ &nbsp;•&nbsp; Gold 30,000+ &nbsp;•&nbsp; Platinum 75,000+</p>
+    <p class="page-sub" style="margin-top:6px;">Bronze 0–29,999 (incl. negative) &nbsp;•&nbsp; Silver 30,000+ &nbsp;•&nbsp; Platinum 100,000+</p>
     ${data.forcedBronzeActive?`<p class="page-sub" style="margin-top:6px;">Locked to Bronze — you missed the weekly minimum of 5 workout days. Log 5+ days this week to recover.</p>`:''}
   </div>
   <div class="card">
     <h4>How to earn</h4>
-    <p class="page-sub" style="margin-top:6px;">+${FIRST_ENTRY_BONUS.toLocaleString()} pts one-time bonus on your very first entry &nbsp;•&nbsp; +${PER_SET_POINTS} pts per set / exercise logged &nbsp;•&nbsp; +${PR_REWARD.toLocaleString()} pts for a new PR (heavier than any lift in the last 7 days) &nbsp;•&nbsp; +${BODYWEIGHT_LOG_REWARD.toLocaleString()} pts every time you log body weight &nbsp;•&nbsp; Cardio &amp; Stairmaster: 1 pt per calorie burned, capped at ${CARDIO_DAILY_CAP}/day</p>
+    <p class="page-sub" style="margin-top:6px;">+${FIRST_ENTRY_BONUS.toLocaleString()} pts one-time bonus on your very first entry &nbsp;•&nbsp; +${PER_SET_POINTS} pts per set / exercise logged &nbsp;•&nbsp; +${PR_REWARD.toLocaleString()} pts for a new PR (heavier than any lift in the last 7 days) &nbsp;•&nbsp; +${BODYWEIGHT_LOG_REWARD.toLocaleString()} pts every time you log body weight &nbsp;•&nbsp; Cardio &amp; Stairmaster: 1 pt per calorie burned, capped at ${CARDIO_DAILY_CAP}/day &nbsp;•&nbsp; ${WEDNESDAY_MULTIPLIER}x points on Wednesdays if activated in Settings (Silver tier+)</p>
     <h4 style="margin-top:10px;">How you lose points</h4>
     <p class="page-sub" style="margin-top:6px;">-${BODYWEIGHT_MISS_PENALTY.toLocaleString()} pts for missing the body weight window (Sun 7AM–Mon 11:59PM) — can go negative and compounds every week it's missed &nbsp;•&nbsp; -${GAP_PENALTY.toLocaleString()} pts for 2+ continuous days with no exercise logged &nbsp;•&nbsp; -${WEEKLY_MISS_PENALTY.toLocaleString()} pts and an immediate drop to Bronze tier for logging fewer than 5 workout days in a week</p>
   </div>
@@ -1335,6 +1427,8 @@ function renderNewFeatures(){
 function renderSettings(){
   const now = new Date();
   const skipCheck = canSkipToday(now);
+  const tier = computeTier();
+  const wedLocked = tier.name==='Bronze';
   let html = `<div class="page-title">Settings</div>
   <div class="page-sub">App preferences — version ${APP_VERSION}</div>
   <div class="card">
@@ -1355,6 +1449,19 @@ function renderSettings(){
     <button class="btn small" onclick="handleSkipToday()" ${skipCheck.ok?'':'disabled'}>Skip Today's Workout</button>
     ${skipCheck.ok?'':`<p class="page-sub" style="margin-top:8px;">${skipCheck.reason}</p>`}
   </div>
+  <div class="card ${wedLocked?'locked-box':''}">
+    <div class="row-between">
+      <div>
+        <h4>4x Points Wednesdays</h4>
+        <p class="page-sub" style="margin-top:4px;">Earn ${WEDNESDAY_MULTIPLIER}x points on every exercise you log, every Wednesday 12:00 AM – 11:59 PM. Requires Silver tier or higher.</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="wed4x-toggle" ${data.settings.wednesday4x?'checked':''} ${wedLocked?'disabled':''} onchange="toggleWednesday4x()">
+        <span class="slider-el"></span>
+      </label>
+    </div>
+    ${wedLocked?`<p class="page-sub" style="margin-top:8px;">Unlocks at Silver tier and above.</p>`:''}
+  </div>
   <div class="card">
     <h4>About</h4>
     <p class="page-sub" style="margin-top:6px;">Signed in as <b style="color:var(--text);">${data.userName||'—'}</b></p>
@@ -1364,6 +1471,10 @@ function renderSettings(){
 }
 function toggleAllowPast(){
   data.settings.allowPastEntries = document.getElementById('past-toggle').checked;
+  persist();
+}
+function toggleWednesday4x(){
+  data.settings.wednesday4x = document.getElementById('wed4x-toggle').checked;
   persist();
 }
 function handleSkipToday(){
