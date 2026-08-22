@@ -202,7 +202,7 @@ svg.linechart{width:100%; height:140px;}
    (localStorage + IndexedDB), points/rewards + tier system
    ============================================================ */
 
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 const STORAGE_KEY = 'alphaWorkoutData_v1';
 const IDB_NAME = 'AlphaWorkoutDB';
 const IDB_STORE = 'state';
@@ -247,29 +247,30 @@ const WORKOUT_PLAN = {
     {id:'thu6', name:'Bicycle Crunches', type:'strength', sets:3, reps:'20', rest:'45 sec'},
     {id:'thu7', name:'Mountain Climbers (HIIT)', type:'cardio', target:'3 x 30 sec', rest:'30 sec'}
   ]},
-  Friday: { focus:'Back (Strength & Thickness) + Biceps', exercises:[
+  Friday: { focus:'Back (Strength & Thickness)', exercises:[
     {id:'fri1', name:'Deadlift', type:'strength', sets:4, reps:'5-6', rest:'150 sec'},
     {id:'fri2', name:'Barbell Bent Over Row', type:'strength', sets:4, reps:'8-10', rest:'90 sec'},
     {id:'fri3', name:'T-Bar Row', type:'strength', sets:3, reps:'10', rest:'90 sec'},
-    {id:'fri4', name:'Chest Supported Machine Row', type:'strength', sets:3, reps:'10-12', rest:'75 sec'},
-    {id:'fri5', name:'Barbell Bicep Curl', type:'strength', sets:3, reps:'10-12', rest:'60 sec'},
-    {id:'fri6', name:'Hammer Curl', type:'strength', sets:3, reps:'12', rest:'60 sec'},
-    {id:'fri7', name:'Concentration Curl', type:'strength', sets:2, reps:'12-15', rest:'45 sec'}
+    {id:'fri4', name:'Chest Supported Machine Row', type:'strength', sets:3, reps:'10-12', rest:'75 sec'}
   ]},
-  Saturday: { focus:'Shoulders & Triceps', exercises:[
-    {id:'sat1', name:'Seated Barbell Shoulder Press', type:'strength', sets:4, reps:'8-10', rest:'90 sec'},
-    {id:'sat2', name:'Arnold Press', type:'strength', sets:3, reps:'10', rest:'75 sec'},
-    {id:'sat3', name:'Lateral Raises', type:'strength', sets:4, reps:'15', rest:'45 sec'},
-    {id:'sat4', name:'Face Pulls', type:'strength', sets:3, reps:'15', rest:'45 sec'},
-    {id:'sat5', name:'Close Grip Bench Press', type:'strength', sets:3, reps:'10', rest:'90 sec'},
-    {id:'sat6', name:'Tricep Rope Pushdown', type:'strength', sets:3, reps:'12-15', rest:'60 sec'},
-    {id:'sat7', name:'Overhead Tricep Extension', type:'strength', sets:3, reps:'12', rest:'60 sec'}
+  Saturday: { focus:'Arms (Biceps & Triceps)', exercises:[
+    {id:'sat1', name:'Close Grip Bench Press', type:'strength', sets:3, reps:'10', rest:'90 sec'},
+    {id:'sat2', name:'Barbell Bicep Curl', type:'strength', sets:3, reps:'10-12', rest:'60 sec'},
+    {id:'sat3', name:'Tricep Rope Pushdown', type:'strength', sets:3, reps:'12-15', rest:'60 sec'},
+    {id:'sat4', name:'Hammer Curl', type:'strength', sets:3, reps:'12', rest:'60 sec'},
+    {id:'sat5', name:'Overhead Tricep Extension', type:'strength', sets:3, reps:'12', rest:'60 sec'},
+    {id:'sat6', name:'Concentration Curl', type:'strength', sets:2, reps:'12-15', rest:'45 sec'}
   ]},
   Sunday: { focus:'Rest Day', exercises:[] }
 };
 
 /* ---------------- changelog ---------------- */
 const CHANGELOG = [
+  { version:'1.0.7', items:[
+    'Revised the Friday/Saturday split: Friday is now Back (Strength & Thickness) only, and the second shoulder day is retired.',
+    'Saturday is now a dedicated Arms day (Biceps & Triceps), combining the biceps work that used to be on Friday with the triceps work that used to be on Saturday.',
+    'Shoulders are now trained once a week (Tuesday) instead of twice; back stays at twice a week (Monday width + Friday thickness).'
+  ]},
   { version:'1.0.6', items:[
     'Added a Goal / Target Weight section to the Body Weight tab. Set it once and it locks — cannot be changed or removed until it automatically expires and reopens for re-entry after 8 weeks.',
     'Tier system revised: Bronze covers 0-29,999 points, Silver unlocks at 30,000, and Platinum unlocks at 100,000 (Gold tier retired).',
